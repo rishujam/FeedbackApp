@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.telephony.SmsManager
 import android.util.Log
 import android.view.View
@@ -12,6 +13,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
@@ -33,9 +35,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var otpGenerated: String
-
-    lateinit var mainViewModel: MainViewModel
-
+    private lateinit var phoneNumberG: String
+    private lateinit var mainViewModel: MainViewModel
+    private lateinit var feedBack: Feedback
     private lateinit var map: Map<String, List<String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +51,7 @@ class MainActivity : AppCompatActivity() {
         mainViewModel.getCompanyData()
 
         mainViewModel.companyData.observe(this, Observer {
-            if(it == null) {
+            if (it == null) {
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(
                     this@MainActivity,
@@ -89,6 +91,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnGetOtp.setOnClickListener {
             val phone = binding.etPhone.text.toString()
             if (phone.length == 10) {
+                phoneNumberG = phone
                 binding.progressBar.visibility = View.VISIBLE
                 getOtp(phone)
                 binding.btnVerify.visibility = View.VISIBLE
@@ -120,7 +123,7 @@ class MainActivity : AppCompatActivity() {
                 val phone = etPhone.text.toString()
                 val comment = etComment.text.toString()
                 val stars = ratingStar.rating
-                val feedback = Feedback(
+                feedBack = Feedback(
                     name,
                     phone,
                     company,
@@ -129,9 +132,10 @@ class MainActivity : AppCompatActivity() {
                     comment
                 )
                 if (name.isNotBlank() && stars != 0f) {
-                    sendToSheets(feedback)
-                }else{
-                    Toast.makeText(this@MainActivity, "Fill details properly", Toast.LENGTH_SHORT).show()
+                    sendToSheets(feedBack)
+                } else {
+                    Toast.makeText(this@MainActivity, "Fill details properly", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
         }
@@ -219,6 +223,7 @@ class MainActivity : AppCompatActivity() {
                 binding.etOtp.setText("")
                 binding.etPhone.setText("")
                 binding.ratingStar.rating = 0f
+                showDialogToGetResponse()
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
@@ -227,6 +232,23 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showDialogToGetResponse() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Response")
+        builder.setMessage("Do you want to get submitted data as sms ?")
+
+        builder.setPositiveButton("Yes") { dialog, which ->
+            val data =
+                "Name: ${feedBack.name}\nCompany: ${feedBack.company}Activity: ${feedBack.activity}\nRating: ${feedBack.rating}\nPhone: ${feedBack.mobile}\nComment: ${feedBack.comment}"
+            sendSMS(phoneNumberG, data)
+        }
+
+        builder.setNegativeButton("No") { dialog, which ->
+
+        }
+        builder.show()
     }
 
     private fun setCompanyAndActivity() {
@@ -271,4 +293,11 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         Log.e("LifeTest", "onDestroy")
     }
+
+    override fun onSaveInstanceState(outState: Bundle, outPersistentState: PersistableBundle) {
+        super.onSaveInstanceState(outState, outPersistentState)
+        Log.e("LifeTest", "onSaveInstance")
+    }
+
+
 }
